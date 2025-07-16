@@ -116,4 +116,19 @@ class RecursiveCharacterTextSplitterTest < Minitest::Test
 
     assert_equal empty_text, reconstructed_empty
   end
+
+  def test_reconstructable_ending_with_separator
+    original_text = "Paragraph one.\n\nParagraph two.\n\n"
+
+    splitter =
+      ::TextSplitters::RecursiveCharacterTextSplitter.new(
+        chunk_size: 10,
+        chunk_overlap: 0
+      )
+
+    chunks = splitter.split(original_text, reconstructable: true)
+    reconstructed_text = chunks.join
+
+    assert_equal original_text, reconstructed_text
+  end
 end

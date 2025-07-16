@@ -11,7 +11,7 @@ module TextSplitters
       @separators = separators
     end
 
-    def split(text, reconstructable: false)
+    def split(text, reconstructable: false, iteration_separators: @separators)
       if reconstructable && !@chunk_overlap.zero?
         raise "Reconstructable mode requires chunk_overlap to be 0"
       end
@@ -19,8 +19,8 @@ module TextSplitters
       output = []
       good_splits = []
 
-      separator = @separators.last
-      @separators.each do |s|
+      separator = iteration_separators.last
+      iteration_separators.each do |s|
         if text.include?(s)
           separator = s
           break
@@ -43,8 +43,18 @@ module TextSplitters
             good_splits = []
           end
 
-          other_info = split(s, reconstructable: reconstructable)
-          output.concat(other_info)
+          other_info = split(
+            s,
+            reconstructable: reconstructable,
+            iteration_separators: iteration_separators - [separator]
+          )
+          if reconstructable
+            last = other_info.pop
+            output.concat(other_info)
+            output << (last + separator) if last
+          else
+            output.concat(other_info)
+          end
         end
       end
 
@@ -54,8 +64,10 @@ module TextSplitters
         output.concat(merged_text)
       end
 
-      last = output.pop if output.last&.end_with?(separator)
-      output << last.delete_suffix(separator) if last
+      if reconstructable && output.last&.end_with?(separator) && !text.end_with?(separator)
+        last = output.pop
+        output << last.delete_suffix(separator)
+      end
 
       output
     end
