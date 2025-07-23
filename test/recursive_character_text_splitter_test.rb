@@ -1,4 +1,5 @@
 require "test_helper"
+require "json"
 
 class RecursiveCharacterTextSplitterTest < Minitest::Test
   def test_basic_case
@@ -127,6 +128,49 @@ class RecursiveCharacterTextSplitterTest < Minitest::Test
       )
 
     chunks = splitter.split(original_text, reconstructable: true)
+    reconstructed_text = chunks.join
+
+    assert_equal original_text, reconstructed_text
+  end
+
+  def test_reconstructable_two_adjacent_separators
+    original_text = "Marina had always been fascinated. As a child, she would spend hours."
+
+    splitter =
+      ::TextSplitters::RecursiveCharacterTextSplitter.new(
+        chunk_size: 20,
+        chunk_overlap: 0,
+        separators: ["\n\n", "\n", ".", "?", "!", " ", ""]
+      )
+
+    chunks = splitter.split(
+      original_text,
+      reconstructable: true
+    )
+
+    puts chunks.inspect
+    reconstructed_text = chunks.join
+
+    assert_equal original_text, reconstructed_text
+  end
+
+  def test_reconstructable_with_large_text
+    story_path = File.join(File.dirname(__FILE__), "fixtures/story.json")
+    pages = JSON.parse(File.read(story_path))
+    original_text = pages.join("\n\n")
+
+    splitter =
+      ::TextSplitters::RecursiveCharacterTextSplitter.new(
+        chunk_size: 50,
+        chunk_overlap: 0,
+        separators: ["\n\n", "\n", ".", "?", "!", " ", ""]
+      )
+
+    chunks = splitter.split(
+      original_text,
+      reconstructable: true
+    )
+
     reconstructed_text = chunks.join
 
     assert_equal original_text, reconstructed_text

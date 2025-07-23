@@ -26,7 +26,7 @@ module TextSplitters
           break
         end
       end
-      splits = text.split(separator)
+      splits = split_string(text, separator, reconstructable: reconstructable)
 
       splits.each do |s|
         if s.length < @chunk_size
@@ -48,13 +48,7 @@ module TextSplitters
             reconstructable: reconstructable,
             iteration_separators: iteration_separators - [separator]
           )
-          if reconstructable
-            last = other_info.pop
-            output.concat(other_info)
-            output << (last + separator) if last
-          else
-            output.concat(other_info)
-          end
+          output.concat(other_info)
         end
       end
 
@@ -64,6 +58,7 @@ module TextSplitters
         output.concat(merged_text)
       end
 
+      # Fix join that ends with separator when the text didn't
       if reconstructable && output.last&.end_with?(separator) && !text.end_with?(separator)
         last = output.pop
         output << last.delete_suffix(separator)
@@ -76,7 +71,8 @@ module TextSplitters
 
     # Given a set of splits that are individually shorter than the chunk size,
     # merge them into chunks that are at most chunk_size long.
-    # If reconstructable is true, the separator will be included in the chunk.
+    # If reconstructable is true, the separator will NOT be used to join the chunks
+    # because we assume the chunks include the separator.
     def merge_splits(splits, separator, reconstructable: false)
       output = []
       current_chunk_splits = [] # the set of splits that will be merged into a single chunk
@@ -89,7 +85,7 @@ module TextSplitters
           # reconstructible means retain even whitespace
           chunk =
             if reconstructable
-              current_chunk_splits.join(separator)
+              current_chunk_splits.join
             else
               current_chunk_splits.join(separator).strip
             end
@@ -109,22 +105,36 @@ module TextSplitters
       end
       chunk =
         if reconstructable
-          current_chunk_splits.join(separator)
+          current_chunk_splits.join
         else
           current_chunk_splits.join(separator).strip
         end
 
       output << chunk if chunk && !chunk.empty?
 
-      if reconstructable
-        # last_chunk = output.last
-        # output[0..-2].map do |unseparated_chunk|
-        #   "#{unseparated_chunk}#{separator}"
-        # end + [last_chunk]
-        output.map { |unseparated_chunk| "#{unseparated_chunk}#{separator}" }
-      else
-        output
+      output
+    end
+
+    def split_string(text, separator, reconstructable:)
+      return text.split(separator) unless reconstructable
+      return text.split(separator) if separator.empty?
+
+      splits = []
+      current_split = ""
+      copy = text.dup
+      until copy.empty?
+        if copy.start_with?(separator)
+          splits << current_split unless current_split.empty?
+          splits << separator
+          current_split = ""
+          copy = copy.delete_prefix(separator)
+        else
+          current_split << copy[0]
+          copy = copy[1..]
+        end
       end
+      splits << current_split unless current_split.empty?
+      splits
     end
   end
 end
